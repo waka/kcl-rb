@@ -1,0 +1,24 @@
+require 'bundler/setup'
+require 'pry'
+
+require 'kcl'
+require_relative './lib/kcl_demo'
+
+task :default => :run
+task :run do
+  KclDemo::App.initialize
+  KclDemo::App.run
+end
+
+task :seed do
+  KclDemo::App.initialize
+  KclDemo::App.seed
+end
+
+task :debug do
+  KclDemo::App.initialize
+
+  kinesis = Kcl::Proxies::KinesisProxy.new(KclDemo::App.config)
+  dynamodb = Kcl::Proxies::DynamoDbProxy.new(KclDemo::App.config)
+  binding.pry
+end
