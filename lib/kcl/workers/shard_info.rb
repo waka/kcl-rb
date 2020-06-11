@@ -3,7 +3,9 @@ module Kcl::Workers
     attr_reader :shard_id,
       :parent_shard_ids,
       :starting_sequence_number,
-      :ending_sequence_number
+      :ending_sequence_number,
+      :assigned_to
+    attr_accessor :checkpoint
 
     # @param [String] shard_id
     # @param [String] parent_shard_id
@@ -13,14 +15,20 @@ module Kcl::Workers
       @parent_shard_id = parent_shard_id
       @starting_sequence_number = sequence_number_range[:starting_sequence_number]
       @ending_sequence_number   = sequence_number_range[:ending_sequence_number]
+      @assigned_to     = ''
+      @checkpoint      = nil
     end
 
     def lease_owner
-      0
+      @assigned_to
+    end
+
+    def lease_owner=(assigned_to)
+      @assigned_to = assigned_to
     end
 
     def completed?
-      true
+      @checkpoint == Kcl::Checkpoints::Sentinel::SHARD_END
     end
   end
 end

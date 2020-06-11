@@ -11,10 +11,10 @@ class Kcl::Worker
   def initialize(id, record_processor_factory)
     @id = id
     @record_processor_factory = record_processor_factory
-    @live_shards  = {}
-    @shards       = {}
-    @kinesis      = nil
-    @checkpointer = nil
+    @live_shards  = {} # Map<String, Boolean>
+    @shards       = {} # Map<String, Kcl::Workers::ShardInfo>
+    @kinesis      = nil # Kcl::Proxies::KinesisProxy
+    @checkpointer = nil # Kcl::Checkpointer
     @timer        = nil
   end
 
@@ -29,15 +29,13 @@ class Kcl::Worker
       trap_signals
 
       @timer = EM::PeriodicTimer.new(PROCESS_INTERVAL) do
-        sync_shards
+        sync_shards!
 
         # Count the number of leases hold by worker excluding the processed shard
         counter = @shards.values.inject(0) do |num, shard|
           shard.lease_owner == @id && shard.completed? ? num + 1 : num
         end
-        if Kcl.config.max_lease_count > counter
-          run_processor
-        end
+        consume_shards! if Kcl.config.max_lease_count > counter
       end
     end
 
@@ -73,7 +71,7 @@ class Kcl::Worker
     end
   end
 
-  def sync_shards
+  def sync_shards!
     @live_shards.transform_values! {|_| false }
 
     @kinesis.get_shards.each do |shard|
@@ -88,13 +86,41 @@ class Kcl::Worker
 
     @live_shards.each do |shard_id, alive|
       next if alive
-      @shards.reject! {|shard| shard[:shard_id] == shard_id }
+      @shards.delete(shard_id)
       @checkpointer.remove_lease(shard_id)
     end
   end
 
   # Process records by shard
-  def run_processor
+  def consume_shards!
+    threads = []
+    @shards.each do |shard_id, shard|
+      threads << Thread.new do
+        # already owner of the shard
+        next if shard.lease_owner == @id
+
+        shard.checkpoint = @checkpointer.fetch_checkpoint(shard_id)
+        # shard is closed and processed all records
+        next if shard.completed?
+
+        record_processor = @record_processor_factory.create_processor
+        process_records(record_processor, shard)
+      end
+    end
+    threads.each(&:join)
+  end
+
+  # Process records by shard
+  def process_records(record_processor, shard)
+    shard.lease_owner = @id
+
+    consumer = Kcl::Workers::Consumer.new(record_processor)
+    consumer.consume(shard) do |records|
+    end
+
+    # cleanup
+    shard.lease_owner = ''
+    @checkpointer.remove_lease(shard_id)
   end
 
   # Cleanup resources

@@ -51,6 +51,6 @@ class Kcl::Checkpointer
   def sequence
   end
 
-  def fetch
+  def fetch_checkpoint
   end
 end
