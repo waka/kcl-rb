@@ -25,17 +25,17 @@ module KclDemo
       last_sequence_number = records_input.records[-1].sequence_number
       Kcl.logger.info("Checkpoint progress at: #{last_sequence_number}, MillisBehindLatest = #{records_input.millis_behind_latest}")
 
-      check_pointer = records_input.check_pointer
-      check_pointer.check_point!(last_sequence_number)
+      #check_pointer = records_input.check_pointer
+      #check_pointer.check_point!(last_sequence_number)
     end
 
     # @implement
     def shutdown(shutdown_input)
-      Kcl.logger.info("Shutdown reason: #{shutdown_input.reason}")
+      Kcl.logger.info("Shutdown reason: #{shutdown_input.shutdown_reason}")
 
-      if shutdown_input.reason == Kcl::Workers::ShutDownReason::TERMINATE
-        check_pointer = shutdown_input.check_pointer
-        check_pointer.check_point!(nil)
+      if shutdown_input.shutdown_reason == Kcl::Workers::ShutdownReason::TERMINATE
+        #check_pointer = shutdown_input.check_pointer
+        #check_pointer.check_point!(nil)
       end
     end
   end

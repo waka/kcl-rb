@@ -1,13 +1,13 @@
 module Kcl::Types
   # Container for the parameters to the IRecordProcessor's method.
   class ShutdownInput
-    attr_reader :check_pointer, :shutdown_reason
+    attr_reader :shutdown_reason, :record_checkpointer
 
-    # @param [Kcl::RecordProcessor::Checkpointer] check_pointer
     # @param [Kcl::Worker::ShutdownReason] shutdown_reason
-    def initialize(check_pointer:, shutdown_reason:)
-      @check_pointer   = check_pointer
-      @shutdown_reason = shutdown_reason
+    # @param [Kcl::Checkpointer] record_checkpointer
+    def initialize(shutdown_reason, record_checkpointer)
+      @shutdown_reason     = shutdown_reason
+      @record_checkpointer = record_checkpointer
     end
   end
 end

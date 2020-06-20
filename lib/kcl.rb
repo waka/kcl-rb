@@ -12,7 +12,9 @@ require 'kcl/types/initialization_input'
 require 'kcl/types/records_input'
 require 'kcl/types/shutdown_input'
 require 'kcl/worker'
+require 'kcl/workers/consumer'
 require 'kcl/workers/shard_info'
+require 'kcl/workers/shutdown_reason'
 
 module Kcl
   def self.configure

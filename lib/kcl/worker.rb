@@ -23,8 +23,6 @@ class Kcl::Worker
   def start
     Kcl.logger.info("Start worker at #{object_id}")
 
-    setup_resources
-
     EM.run do
       trap_signals
 
@@ -35,7 +33,9 @@ class Kcl::Worker
         counter = @shards.values.inject(0) do |num, shard|
           shard.lease_owner == @id && shard.completed? ? num + 1 : num
         end
-        consume_shards! if Kcl.config.max_lease_count > counter
+        if Kcl.config.max_lease_count > counter
+          consume_shards!
+        end
       end
     end
 
@@ -59,35 +59,24 @@ class Kcl::Worker
     raise ex
   end
 
-  def setup_resources
-    if instance_variable_get(:@kinesis).nil?
-      @kinesis = Kcl::Proxies::KinesisProxy.new(Kcl.config)
-      Kcl.logger.info('Created Kinesis session')
-    end
-
-    if instance_variable_get(:@checkpoint).nil?
-      @checkpointer = Kcl::Checkpointer.new(Kcl.config)
-      Kcl.logger.info('Created Checkpoint')
-    end
-  end
-
   def sync_shards!
     @live_shards.transform_values! {|_| false }
 
-    @kinesis.get_shards.each do |shard|
+    kinesis.get_shards.each do |shard|
       @live_shards[shard.shard_id] = true
       @shards[shard.shard_id] = Kcl::Workers::ShardInfo.new(
         shard.shard_id,
         shard.parent_shard_id,
         shard.sequence_number_range
       )
-      Kcl.logger.info("Found new shard with #{shard.shard_id}")
+      Kcl.logger.info("Found new shard at shard_id: #{shard.shard_id}")
     end
 
     @live_shards.each do |shard_id, alive|
       next if alive
+      checkpointer.remove_lease(@shards[shard_id])
       @shards.delete(shard_id)
-      @checkpointer.remove_lease(shard_id)
+      Kcl.logger.info("Remove shard at shard_id: #{shard_id}")
     end
   end
 
@@ -95,32 +84,26 @@ class Kcl::Worker
   def consume_shards!
     threads = []
     @shards.each do |shard_id, shard|
+      # already owner of the shard
+      next if shard.lease_owner == @id
+
+      shard = checkpointer.fetch_checkpoint(shard)
+      # shard is closed and processed all records
+      next if shard.completed?
+
       threads << Thread.new do
-        # already owner of the shard
-        next if shard.lease_owner == @id
-
-        shard.checkpoint = @checkpointer.fetch_checkpoint(shard_id)
-        # shard is closed and processed all records
-        next if shard.completed?
-
-        record_processor = @record_processor_factory.create_processor
-        process_records(record_processor, shard)
+        shard = checkpointer.lease(shard, @id)
+        consumer = Kcl::Workers::Consumer.new(
+          shard,
+          @record_processor_factory.create_processor
+        )
+        consumer.consume!
+        shard = checkpointer.remove_lease_owner(shard)
+        
+        Kcl.logger.info("Finish to consume shard at shard_id: #{shard_id}")
       end
     end
     threads.each(&:join)
-  end
-
-  # Process records by shard
-  def process_records(record_processor, shard)
-    shard.lease_owner = @id
-
-    consumer = Kcl::Workers::Consumer.new(record_processor)
-    consumer.consume(shard) do |records|
-    end
-
-    # cleanup
-    shard.lease_owner = ''
-    @checkpointer.remove_lease(shard_id)
   end
 
   # Cleanup resources
@@ -132,6 +115,22 @@ class Kcl::Worker
   end
 
   private
+
+  def kinesis
+    if @kinesis.nil?
+      @kinesis = Kcl::Proxies::KinesisProxy.new(Kcl.config)
+      Kcl.logger.info('Created Kinesis session in worker')
+    end
+    @kinesis
+  end
+
+  def checkpointer
+    if @checkpointer.nil?
+      @checkpointer = Kcl::Checkpointer.new(Kcl.config)
+      Kcl.logger.info('Created Checkpoint in worker')
+    end
+    @checkpointer
+  end
 
   def trap_signals
     [:HUP, :INT, :TERM].each do |signal|

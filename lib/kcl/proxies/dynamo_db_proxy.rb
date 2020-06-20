@@ -14,6 +14,7 @@ module Kcl::Proxies
       })
     end
 
+    # @params [String] table_name
     def exists?(table_name)
       @client.describe_table({ table_name: table_name })
       true
@@ -22,6 +23,10 @@ module Kcl::Proxies
       false
     end
 
+    # @params [String] table_name
+    # @params [Array]  attributes
+    # @params [Array]  schema
+    # @params [Hash]   throughputs
     def create_table(table_name, attributes = [], schema = [], throughputs = {})
       @client.create_table({
         table_name: table_name,
@@ -31,6 +36,7 @@ module Kcl::Proxies
       })
     end
 
+    # @params [String] table_name
     def delete_table(table_name)
       @client.delete_table({ table_name: table_name })
       true
@@ -38,6 +44,9 @@ module Kcl::Proxies
       false
     end
 
+    # @params [String] table_name
+    # @params [Hash]   conditions
+    # @return [Hash]
     def get_item(table_name, conditions)
       response = @client.get_item({
         table_name: table_name,
@@ -48,6 +57,9 @@ module Kcl::Proxies
       nil
     end
 
+    # @params [String]  table_name
+    # @params [Hash]    item
+    # @return [Boolean]
     def put_item(table_name, item)
       @client.put_item({
         table_name: table_name,
@@ -58,6 +70,41 @@ module Kcl::Proxies
       false
     end
 
+    # @params [String]  table_name
+    # @params [Hash]    conditions
+    # @params [String]  update_expression
+    # @return [Boolean]
+    def update_item(table_name, conditions, update_expression)
+      @client.update_item({
+        table_name: table_name,
+        key: conditions,
+        update_expression: update_expression
+      })
+      true
+    rescue Aws::DynamoDB::Errors::ResourceNotFoundException
+      false
+    end
+
+    # @params [String]  table_name
+    # @params [Hash]    item
+    # @params [String]  condition_expression
+    # @params [Hash]    expression_attributes
+    # @return [Boolean]
+    def conditional_update_item(table_name, item, condition_expression, expression_attributes)
+      @client.put_item({
+        table_name: table_name,
+        item: item,
+        condition_expression: condition_expression,
+        expression_attribute_values: expression_attributes
+      })
+      true
+    rescue Aws::DynamoDB::Errors::ResourceNotFoundException
+      false
+    end
+
+    # @params [String]  table_name
+    # @params [Hash]    conditions
+    # @return [Boolean]
     def remove_item(table_name, conditions)
       @client.delete_item({
         table_name: table_name,
