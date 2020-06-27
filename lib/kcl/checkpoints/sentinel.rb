@@ -11,5 +11,7 @@ module Kcl::Checkpoints
     SHARD_END    = 'SHARD_END'
     # Start from the record at or after the specified server-side timestamp.
     AT_TIMESTAMP = 'AT_TIMESTAMP'
+    # Continue from the sequence number in the shard.
+    AFTER_SEQUENCE_NUMBER = 'AFTER_SEQUENCE_NUMBER'
   end
 end

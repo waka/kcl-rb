@@ -25,14 +25,14 @@ Build dependencies
 $ bundle install --path vendor/bundle
 ```
 
-Put records to Kinesis stream
-
-```
-$ bundle exec rake seed
-```
-
-Run KCL application
+Run Demo KCL application
 
 ```
 $ bundle exec rake run
+```
+
+Put records to Kinesis stream
+
+```
+$ RECORD_COUNT=10 bundle exec rake seed
 ```

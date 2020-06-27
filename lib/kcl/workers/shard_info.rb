@@ -14,8 +14,8 @@ module Kcl::Workers
       @parent_shard_id = parent_shard_id || 0
       @starting_sequence_number = sequence_number_range[:starting_sequence_number]
       @ending_sequence_number   = sequence_number_range[:ending_sequence_number]
-      @assigned_to     = ''
-      @checkpoint      = ''
+      @assigned_to     = nil
+      @checkpoint      = nil
       @lease_timeout   = ''
     end
 
@@ -31,8 +31,17 @@ module Kcl::Workers
       @checkpoint == Kcl::Checkpoints::Sentinel::SHARD_END
     end
 
-    def to_s
-      "shard_id: #{shard_id}, parent_shard_id: #{parent_shard_id}, assigned_to: #{assigned_to}, checkpoint: #{checkpoint}, lease_timeout: #{lease_timeout}"
+    # For debug
+    def to_h
+      {
+        shard_id: shard_id,
+        parent_shard_id: parent_shard_id,
+        starting_sequence_number: starting_sequence_number,
+        ending_sequence_number: ending_sequence_number,
+        assigned_to: assigned_to,
+        checkpoint: checkpoint,
+        lease_timeout: lease_timeout
+      }
     end
   end
 end

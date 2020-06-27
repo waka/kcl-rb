@@ -4,7 +4,7 @@ module Kcl::Types
     attr_reader :shutdown_reason, :record_checkpointer
 
     # @param [Kcl::Worker::ShutdownReason] shutdown_reason
-    # @param [Kcl::Checkpointer] record_checkpointer
+    # @param [Kcl::Workers::RecordCheckpointer] record_checkpointer
     def initialize(shutdown_reason, record_checkpointer)
       @shutdown_reason     = shutdown_reason
       @record_checkpointer = record_checkpointer

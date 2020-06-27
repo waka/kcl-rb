@@ -28,18 +28,12 @@ class Kcl::Worker
 
       @timer = EM::PeriodicTimer.new(PROCESS_INTERVAL) do
         sync_shards!
-
-        # Count the number of leases hold by worker excluding the processed shard
-        counter = @shards.values.inject(0) do |num, shard|
-          shard.lease_owner == @id && shard.completed? ? num + 1 : num
-        end
-        if Kcl.config.max_lease_count > counter
-          consume_shards!
-        end
+        consume_shards! if available_lease_shard?
       end
     end
 
     cleanup
+    Kcl.logger.info("Finish worker at #{object_id}")
   rescue => ex
     Kcl.logger.error("#{ex.class}: #{ex.message}")
     raise ex
@@ -59,17 +53,28 @@ class Kcl::Worker
     raise ex
   end
 
+  # Cleanup resources
+  def cleanup
+    @live_shards  = {}
+    @shards       = {}
+    @kinesis      = nil
+    @checkpointer = nil
+  end
+
+  # Add new shards and delete unused shards
   def sync_shards!
     @live_shards.transform_values! {|_| false }
 
     kinesis.get_shards.each do |shard|
       @live_shards[shard.shard_id] = true
-      @shards[shard.shard_id] = Kcl::Workers::ShardInfo.new(
-        shard.shard_id,
-        shard.parent_shard_id,
-        shard.sequence_number_range
-      )
-      Kcl.logger.info("Found new shard at shard_id: #{shard.shard_id}")
+      if @shards[shard.shard_id].nil?
+        @shards[shard.shard_id] = Kcl::Workers::ShardInfo.new(
+          shard.shard_id,
+          shard.parent_shard_id,
+          shard.sequence_number_range
+        )
+        Kcl.logger.info("Found new shard at shard_id: #{shard.shard_id}")
+      end
     end
 
     @live_shards.each do |shard_id, alive|
@@ -80,6 +85,15 @@ class Kcl::Worker
     end
   end
 
+  # Count the number of leases hold by worker excluding the processed shard
+  # @return [Boolean]
+  def available_lease_shard?
+    leased_count = @shards.values.inject(0) do |num, shard|
+      shard.lease_owner == @id && !shard.completed? ? num + 1 : num
+    end
+    Kcl.config.max_lease_count > leased_count
+  end
+
   # Process records by shard
   def consume_shards!
     threads = []
@@ -87,31 +101,33 @@ class Kcl::Worker
       # already owner of the shard
       next if shard.lease_owner == @id
 
-      shard = checkpointer.fetch_checkpoint(shard)
+      begin
+        shard = checkpointer.fetch_checkpoint(shard)
+      rescue Kcl::Errors::CheckpointNotFoundError
+        Kcl.logger.info("Not found checkpoint of shard at #{shard.to_h}")
+        next
+      end
       # shard is closed and processed all records
       next if shard.completed?
 
+      shard = checkpointer.lease(shard, @id)
+
       threads << Thread.new do
-        shard = checkpointer.lease(shard, @id)
-        consumer = Kcl::Workers::Consumer.new(
-          shard,
-          @record_processor_factory.create_processor
-        )
-        consumer.consume!
-        shard = checkpointer.remove_lease_owner(shard)
-        
-        Kcl.logger.info("Finish to consume shard at shard_id: #{shard_id}")
+        begin
+          consumer = Kcl::Workers::Consumer.new(
+            shard,
+            @record_processor_factory.create_processor,
+            kinesis,
+            checkpointer
+          )
+          consumer.consume!
+        ensure
+          shard = checkpointer.remove_lease_owner(shard)
+          Kcl.logger.info("Finish to consume shard at shard_id: #{shard_id}")
+        end
       end
     end
     threads.each(&:join)
-  end
-
-  # Cleanup resources
-  def cleanup
-    @live_shards  = {}
-    @shards       = {}
-    @kinesis      = nil
-    @checkpointer = nil
   end
 
   private

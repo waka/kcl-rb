@@ -13,6 +13,7 @@ require 'kcl/types/records_input'
 require 'kcl/types/shutdown_input'
 require 'kcl/worker'
 require 'kcl/workers/consumer'
+require 'kcl/workers/record_checkpointer'
 require 'kcl/workers/shard_info'
 require 'kcl/workers/shutdown_reason'
 
@@ -26,6 +27,6 @@ module Kcl
   end
 
   def self.logger
-    @_logger ||= config.logger || Kcl::Logger.new($stdout)
+    @_logger ||= (config.logger || Kcl::Logger.new($stdout))
   end
 end

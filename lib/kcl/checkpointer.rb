@@ -35,21 +35,21 @@ class Kcl::Checkpointer
   # Retrieves the checkpoint for the given shard
   # @params [Kcl::Workers::ShardInfo] shard
   # @return [Kcl::Workers::ShardInfo]
+  # @return [nil]
   def fetch_checkpoint(shard)
     checkpoint = @dynamodb.get_item(
       @table_name,
       { "#{DYNAMO_DB_LEASE_PRIMARY_KEY}" => shard.shard_id }
     )
+    return shard if checkpoint.nil?
 
-    if checkpoint
+    if checkpoint[DYNAMO_DB_CHECKPOINT_SEQUENCE_NUMBER_KEY]
       shard.checkpoint = checkpoint[DYNAMO_DB_CHECKPOINT_SEQUENCE_NUMBER_KEY]
-      shard.assigned_to = checkpoint[DYNAMO_DB_LEASE_OWNER_KEY]
-      Kcl.logger.info("Retrieves checkpoint of shard at #{shard.shard_id}")
-    else
-      shard.checkpoint = ''
-      shard.assigned_to = ''
-      Kcl.logger.info("Initial checkpoint of shard at #{shard.shard_id}")
     end
+    if checkpoint[DYNAMO_DB_LEASE_OWNER_KEY]
+      shard.assigned_to = checkpoint[DYNAMO_DB_LEASE_OWNER_KEY]
+    end
+    Kcl.logger.info("Retrieves checkpoint of shard at #{shard.to_h}")
 
     shard
   end
@@ -59,10 +59,10 @@ class Kcl::Checkpointer
   # @return [Kcl::Workers::ShardInfo]
   def update_checkpoint(shard)
     item = {
-      DYNAMO_DB_LEASE_PRIMARY_KEY: shard.shard_id,
-      DYNAMO_DB_CHECKPOINT_SEQUENCE_NUMBER_KEY: shard.checkpoint,
-      DYNAMO_DB_LEASE_OWNER_KEY: shard.assigned_to,
-      DYNAMO_DB_LEASE_TIMEOUT_KEY: shard.lease_timeout
+      "#{DYNAMO_DB_LEASE_PRIMARY_KEY}" => shard.shard_id,
+      "#{DYNAMO_DB_CHECKPOINT_SEQUENCE_NUMBER_KEY}" => shard.checkpoint,
+      "#{DYNAMO_DB_LEASE_OWNER_KEY}" => shard.assigned_to,
+      "#{DYNAMO_DB_LEASE_TIMEOUT_KEY}" => shard.lease_timeout.to_s
     }
     if shard.parent_shard_id > 0
       item[DYNAMO_DB_PARENT_SHARD_KEY] = shard.parent_shard_id
@@ -70,9 +70,9 @@ class Kcl::Checkpointer
 
     result = @dynamodb.put_item(@table_name, item)
     if result
-      Kcl.logger.info("Write checkpoint of shard at #{shard.shard_id}")
+      Kcl.logger.info("Write checkpoint of shard at #{shard.to_h}")
     else
-      Kcl.logger.info("Failed to write checkpoint for shard at #{shard.shard_id}")
+      Kcl.logger.info("Failed to write checkpoint for shard at #{shard.to_h}")
     end
 
     shard
@@ -103,7 +103,7 @@ class Kcl::Checkpointer
         ':assigned_to' => assigned_to,
         ':lease_timeout' => lease_timeout
       }
-      Kcl.logger.info("Attempting to get a lock for shard: #{shard.shard_id}, lease_timeout: #{lease_timeout}, assigned_to: #{assigned_to}")
+      Kcl.logger.info("Attempting to get a lock for shard: #{shard.to_h}")
     else
       condition_expression = 'attribute_not_exists(assigned_to)'
       expression_attributes = nil
@@ -130,9 +130,9 @@ class Kcl::Checkpointer
     if result
       shard.assigned_to = next_assigned_to
       shard.lease_timeout = next_lease_timeout
-      Kcl.logger.info("Get lease for shard at #{shard.shard_id}")
+      Kcl.logger.info("Get lease for shard at #{shard.to_h}")
     else
-      Kcl.logger.info("Failed to get lease for shard at #{shard.shard_id}")
+      Kcl.logger.info("Failed to get lease for shard at #{shard.to_h}")
     end
 
     shard
@@ -147,9 +147,9 @@ class Kcl::Checkpointer
       { "#{DYNAMO_DB_LEASE_PRIMARY_KEY}" => shard.shard_id }
     )
     if result
-      Kcl.logger.info("Remove lease for shard at #{shard.shard_id}")
+      Kcl.logger.info("Remove lease for shard at #{shard.to_h}")
     else
-      Kcl.logger.info("Failed to remove lease for shard at #{shard.shard_id}")
+      Kcl.logger.info("Failed to remove lease for shard at #{shard.to_h}")
     end
 
     shard
@@ -165,10 +165,10 @@ class Kcl::Checkpointer
       "remove #{DYNAMO_DB_LEASE_OWNER_KEY}"
     )
     if result
-      shard.assigned_to = ''
-      Kcl.logger.info("Remove lease owner for shard at #{shard.shard_id}")
+      shard.assigned_to = nil
+      Kcl.logger.info("Remove lease owner for shard at #{shard.to_h}")
     else
-      Kcl.logger.info("Failed to remove lease owner for shard at #{shard.shard_id}")
+      Kcl.logger.info("Failed to remove lease owner for shard at #{shard.to_h}")
     end
 
     shard

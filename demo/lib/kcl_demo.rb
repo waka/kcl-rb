@@ -28,11 +28,11 @@ module KclDemo
       Kcl::Worker.run('kcl-demo', factory)
     end
 
-    def self.seed
+    def self.seed(record_count = 1000)
       proxy = Kcl::Proxies::KinesisProxy.new(config)
 
       # puts records
-      1000.times do |i|
+      record_count.times do |i|
         str = SecureRandom.alphanumeric
         hash = JSON.generate({id: i, name: str})
         resp = proxy.put_record({

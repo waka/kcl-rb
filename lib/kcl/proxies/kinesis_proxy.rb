@@ -24,13 +24,16 @@ module Kcl::Proxies
     # @param [String] shard_id
     # @param [String] shard_iterator_type
     # @return [String]
-    def get_shard_iterator(shard_id, shard_iterator_type = nil)
-      shard_iterator_type ||= Kcl::Checkpoints::Sentinel::TRIM_HORIZON
-      res = @client.get_shard_iterator({
+    def get_shard_iterator(shard_id, shard_iterator_type = nil, sequence_number = nil)
+      params = {
         stream_name: @stream_name,
         shard_id: shard_id,
-        shard_iterator_type: shard_iterator_type
-      })
+        shard_iterator_type: shard_iterator_type || Kcl::Checkpoints::Sentinel::LATEST
+      }
+      if shard_iterator_type == Kcl::Checkpoints::Sentinel::AFTER_SEQUENCE_NUMBER
+        params[:starting_sequence_number] = sequence_number
+      end
+      res = @client.get_shard_iterator(params)
       res.shard_iterator
     end
 

@@ -4,31 +4,55 @@ module Kcl::Workers
   # - send to record processor
   # - create record checkpoint
   class Consumer
-    def initialize(shard, record_processor)
+    def initialize(shard, record_processor, kinesis_proxy, checkpointer)
       @shard = shard
       @record_processor = record_processor
+      @kinesis = kinesis_proxy
+      @checkpointer = checkpointer
     end
 
     def consume!
       initialize_input = create_initialize_input
       @record_processor.after_initialize(initialize_input)
 
-      result = kinesis.get_records(shard_iterator)
-      records_input = create_records_input(
-        result[:records],
-        result[:millis_behind_latest]
-      )
-      @record_processor.process_records(records_input)
+      record_checkpointer = Kcl::Workers::RecordCheckpointer.new(@shard, @checkpointer)
+      shard_iterator = start_shard_iterator
 
-      shutdown_input = create_shutdown_input(
-        Kcl::Workers::ShutdownReason::TERMINATE,
-        'TODO'
-      )
+      while true
+        result = @kinesis.get_records(shard_iterator)
+
+        records_input = create_records_input(
+          result[:records],
+          result[:millis_behind_latest],
+          record_checkpointer
+        )
+        @record_processor.process_records(records_input)
+
+        shard_iterator = result[:next_shard_iterator]
+        break if result[:records].size == 0 || shard_iterator.nil?
+      end
+
+      shutdown_reason = shard_iterator.nil? ?
+        Kcl::Workers::ShutdownReason::TERMINATE :
+        Kcl::Workers::ShutdownReason::REQUESTED
+      shutdown_input = create_shutdown_input(shutdown_reason, record_checkpointer)
       @record_processor.shutdown(shutdown_input)
     end
 
-    def shard_iterator
-      kinesis.get_shard_iterator(@shard.shard_id)
+    def start_shard_iterator
+      shard = @checkpointer.fetch_checkpoint(@shard)
+      if shard.checkpoint.nil?
+        return @kinesis.get_shard_iterator(
+          @shard.shard_id,
+          Kcl::Checkpoints::Sentinel::TRIM_HORIZON
+        )
+      end
+
+      @kinesis.get_shard_iterator(
+        @shard.shard_id,
+        Kcl::Checkpoints::Sentinel::AFTER_SEQUENCE_NUMBER,
+        @shard.checkpoint
+      )
     end
 
     def create_initialize_input
@@ -38,10 +62,11 @@ module Kcl::Workers
       )
     end
 
-    def create_records_input(records, millis_behind_latest)
+    def create_records_input(records, millis_behind_latest, record_checkpointer)
       Kcl::Types::RecordsInput.new(
         records,
-        millis_behind_latest
+        millis_behind_latest,
+        record_checkpointer
       )
     end
 
@@ -50,24 +75,6 @@ module Kcl::Workers
         shutdown_reason,
         record_checkpointer
       )
-    end
-
-    private
-
-    def kinesis
-      if @kinesis.nil?
-        @kinesis = Kcl::Proxies::KinesisProxy.new(Kcl.config)
-        Kcl.logger.info('Created Kinesis session')
-      end
-      @kinesis
-    end
-
-    def checkpointer
-      if @checkpointer.nil?
-        @checkpointer = Kcl::Checkpointer.new(Kcl.config)
-        Kcl.logger.info('Created Checkpoint')
-      end
-      @checkpointer
     end
   end
 end

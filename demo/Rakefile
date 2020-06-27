@@ -12,7 +12,12 @@ end
 
 task :seed do
   KclDemo::App.initialize
-  KclDemo::App.seed
+  record_count = Integer(ENV['RECORD_COUNT'] ||0)
+  if record_count == 0
+    puts "Set over 1 for RECORD_COUNT"
+    return
+  end
+  KclDemo::App.seed(record_count)
 end
 
 task :debug do
