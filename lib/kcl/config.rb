@@ -10,6 +10,7 @@ class Kcl::Config
     :kinesis_endpoint,
     :kinesis_stream_name,
     :logger,
+    :log_level,
     :max_lease_count,
     :use_ssl,
     :worker_count

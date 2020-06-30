@@ -35,7 +35,6 @@ class Kcl::Checkpointer
   # Retrieves the checkpoint for the given shard
   # @params [Kcl::Workers::ShardInfo] shard
   # @return [Kcl::Workers::ShardInfo]
-  # @return [nil]
   def fetch_checkpoint(shard)
     checkpoint = @dynamodb.get_item(
       @table_name,

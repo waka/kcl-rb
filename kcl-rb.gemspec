@@ -29,5 +29,6 @@ Gem::Specification.new do |spec|
   spec.add_dependency "aws-sdk-dynamodb", "~> 1"
   spec.add_dependency "aws-sdk-kinesis", "~> 1"
   spec.add_dependency "eventmachine", "~> 1.2.7"
-  spec.add_dependency "http-2", "~> 0.10"
+
+  spec.add_development_dependency "rspec", "~> 3.0"
 end
