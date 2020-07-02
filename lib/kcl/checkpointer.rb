@@ -127,7 +127,7 @@ class Kcl::Checkpointer
       expression_attributes
     )
     if result
-      shard.assigned_to = next_assigned_to
+      shard.assigned_to   = next_assigned_to
       shard.lease_timeout = next_lease_timeout
       Kcl.logger.info("Get lease for shard at #{shard.to_h}")
     else
@@ -146,6 +146,9 @@ class Kcl::Checkpointer
       { "#{DYNAMO_DB_LEASE_PRIMARY_KEY}" => shard.shard_id }
     )
     if result
+      shard.assigned_to   = nil
+      shard.checkpoint    = nil
+      shard.lease_timeout = nil
       Kcl.logger.info("Remove lease for shard at #{shard.to_h}")
     else
       Kcl.logger.info("Failed to remove lease for shard at #{shard.to_h}")

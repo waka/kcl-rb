@@ -16,7 +16,7 @@ module Kcl::Workers
       @ending_sequence_number   = sequence_number_range[:ending_sequence_number]
       @assigned_to     = nil
       @checkpoint      = nil
-      @lease_timeout   = ''
+      @lease_timeout   = nil
     end
 
     def lease_owner

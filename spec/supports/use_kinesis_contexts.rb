@@ -1,7 +1,11 @@
 RSpec.shared_context 'use_kinesis' do
-  let(:stub_kinesis_client) { Aws::Kinesis::Client.new(stub_responses: true) }
-
-  before do
-    allow(Aws::Kinesis::Client).to receive(:new).and_return(stub_kinesis_client)
-  end
+  let(:kinesis) { Kcl::Proxies::KinesisProxy.new(Kcl.config) }
+  let(:kinesis_shards) { kinesis.get_shards }
+  let(:shard) {
+    Kcl::Workers::ShardInfo.new(
+      kinesis_shards[0].shard_id,
+      kinesis_shards[0].parent_shard_id,
+      kinesis_shards[0].sequence_number_range
+    )
+  }
 end

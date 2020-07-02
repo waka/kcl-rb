@@ -1,4 +1,6 @@
 /.bundle/
+/terraform/terraform.tfstate*
+/terraform/.terraform
 /vendor
 
 /demo/.bundle/
