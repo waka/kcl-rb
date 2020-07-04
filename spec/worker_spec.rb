@@ -3,7 +3,12 @@ require 'spec_helper'
 RSpec.describe Kcl::Worker do
   include_context 'use_kinesis'
 
-  let(:worker) { Kcl::Worker.new('test-worker', nil) }
+  let(:record_processor_factory) { double('record_processor_factory') }
+  let(:worker) { Kcl::Worker.new('test-worker', record_processor_factory) }
+
+  before do
+    allow(record_processor_factory).to receive(:create_processor)
+  end
 
   describe '#sync_shards!' do
     subject { worker.sync_shards! }
@@ -11,12 +16,28 @@ RSpec.describe Kcl::Worker do
   end
 
   describe '#available_lease_shard?' do
-    before do
-      worker.sync_shards!
-    end
-
     subject { worker.available_lease_shard? }
 
-    it { expect(subject).to be_truthy }
+    context 'before consume' do
+      before do
+        worker.sync_shards!
+      end
+
+      it { expect(subject).to be_truthy }
+    end
+
+    context 'after consume' do
+      let(:consumer) { instance_double(Kcl::Workers::Consumer) }
+
+      before do
+        allow(Kcl::Workers::Consumer).to receive(:new).and_return(consumer)
+        allow(consumer).to receive(:consume!).and_return(true)
+
+        worker.sync_shards!
+        worker.consume_shards!
+      end
+
+      it { expect(subject).to be_truthy }
+    end
   end
 end

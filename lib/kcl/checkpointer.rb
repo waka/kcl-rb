@@ -7,6 +7,8 @@ class Kcl::Checkpointer
   DYNAMO_DB_CHECKPOINT_SEQUENCE_NUMBER_KEY = 'checkpoint'
   DYNAMO_DB_PARENT_SHARD_KEY  = 'parent_shard_id'
 
+  attr_reader :dynamodb
+
   # @param [Kcl::Config] config
   def initialize(config)
     @dynamodb = Kcl::Proxies::DynamoDbProxy.new(config)

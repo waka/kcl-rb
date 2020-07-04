@@ -7,7 +7,7 @@ RSpec.describe Kcl::Checkpointer do
 
   describe '#initialize' do
     it 'exists dynamodb table' do
-      dynamodb = Kcl::Proxies::DynamoDbProxy.new(Kcl.config)
+      dynamodb = checkpointer.dynamodb
       expect(dynamodb.exists?(Kcl.config.dynamodb_table_name)).to be_truthy
     end
   end
