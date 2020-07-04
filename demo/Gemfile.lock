@@ -6,7 +6,6 @@ PATH
       aws-sdk-dynamodb (~> 1)
       aws-sdk-kinesis (~> 1)
       eventmachine (~> 1.2.7)
-      http-2 (~> 0.10)
 
 GEM
   remote: https://rubygems.org/
@@ -35,7 +34,6 @@ GEM
     coderay (1.1.3)
     concurrent-ruby (1.1.6)
     eventmachine (1.2.7)
-    http-2 (0.10.1)
     i18n (1.8.3)
       concurrent-ruby (~> 1.0)
     jmespath (1.4.0)
