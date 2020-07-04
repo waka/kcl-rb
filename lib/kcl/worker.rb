@@ -83,6 +83,8 @@ class Kcl::Worker
       @shards.delete(shard_id)
       Kcl.logger.info("Remove shard at shard_id: #{shard_id}")
     end
+
+    @shards
   end
 
   # Count the number of leases hold by worker excluding the processed shard
