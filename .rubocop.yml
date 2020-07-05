@@ -77,6 +77,9 @@ Style/NumericPredicate:
 Style/RaiseArgs:
   Enabled: false
 
+Style/RedundantBegin:
+  Enabled: false
+
 Style/RedundantInterpolation:
   Enabled: false
 
