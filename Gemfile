@@ -1,7 +1,4 @@
-source "https://rubygems.org"
+source 'https://rubygems.org'
 
 # Specify your gem's dependencies in kcl-rb.gemspec
 gemspec
-
-gem "rake", "~> 12.0"
-gem "pry"

@@ -16,6 +16,7 @@ GEM
       minitest (~> 5.1)
       tzinfo (~> 1.1)
       zeitwerk (~> 2.2, >= 2.2.2)
+    ast (2.4.1)
     aws-eventstream (1.1.0)
     aws-partitions (1.326.0)
     aws-sdk-core (3.98.0)
@@ -31,19 +32,20 @@ GEM
       aws-sigv4 (~> 1.1)
     aws-sigv4 (1.1.4)
       aws-eventstream (~> 1.0, >= 1.0.2)
-    coderay (1.1.2)
     concurrent-ruby (1.1.6)
     diff-lcs (1.4.2)
     eventmachine (1.2.7)
     i18n (1.8.3)
       concurrent-ruby (~> 1.0)
     jmespath (1.4.0)
-    method_source (1.0.0)
     minitest (5.14.1)
-    pry (0.13.1)
-      coderay (~> 1.1)
-      method_source (~> 1.0)
+    parallel (1.19.2)
+    parser (2.7.1.4)
+      ast (~> 2.4.1)
+    rainbow (3.0.0)
     rake (12.3.3)
+    regexp_parser (1.7.1)
+    rexml (3.2.4)
     rspec (3.9.0)
       rspec-core (~> 3.9.0)
       rspec-expectations (~> 3.9.0)
@@ -57,9 +59,22 @@ GEM
       diff-lcs (>= 1.2.0, < 2.0)
       rspec-support (~> 3.9.0)
     rspec-support (3.9.3)
+    rubocop (0.86.0)
+      parallel (~> 1.10)
+      parser (>= 2.7.0.1)
+      rainbow (>= 2.2.2, < 4.0)
+      regexp_parser (>= 1.7)
+      rexml
+      rubocop-ast (>= 0.0.3, < 1.0)
+      ruby-progressbar (~> 1.7)
+      unicode-display_width (>= 1.4.0, < 2.0)
+    rubocop-ast (0.1.0)
+      parser (>= 2.7.0.1)
+    ruby-progressbar (1.10.1)
     thread_safe (0.3.6)
     tzinfo (1.2.7)
       thread_safe (~> 0.1)
+    unicode-display_width (1.7.0)
     zeitwerk (2.3.0)
 
 PLATFORMS
@@ -67,9 +82,9 @@ PLATFORMS
 
 DEPENDENCIES
   kcl-rb!
-  pry
   rake (~> 12.0)
   rspec (~> 3.0)
+  rubocop (~> 0.86.0)
 
 BUNDLED WITH
    2.1.4

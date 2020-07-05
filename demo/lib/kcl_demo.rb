@@ -34,12 +34,14 @@ module KclDemo
       # puts records
       record_count.times do |i|
         str = SecureRandom.alphanumeric
-        hash = JSON.generate({id: i, name: str})
-        resp = proxy.put_record({
-          stream_name: config.kinesis_stream_name,
-          data: Base64.strict_encode64(hash),
-          partition_key: str
-        })
+        hash = JSON.generate({ id: i, name: str })
+        resp = proxy.put_record(
+          {
+            stream_name: config.kinesis_stream_name,
+            data: Base64.strict_encode64(hash),
+            partition_key: str
+          }
+        )
         puts resp
       end
     end

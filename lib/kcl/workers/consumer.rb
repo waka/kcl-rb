@@ -18,7 +18,7 @@ module Kcl::Workers
       record_checkpointer = Kcl::Workers::RecordCheckpointer.new(@shard, @checkpointer)
       shard_iterator = start_shard_iterator
 
-      while true
+      loop do
         result = @kinesis.get_records(shard_iterator)
 
         records_input = create_records_input(
@@ -29,7 +29,7 @@ module Kcl::Workers
         @record_processor.process_records(records_input)
 
         shard_iterator = result[:next_shard_iterator]
-        break if result[:records].size == 0 || shard_iterator.nil?
+        break if result[:records].empty? || shard_iterator.nil?
       end
 
       shutdown_reason = shard_iterator.nil? ?

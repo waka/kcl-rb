@@ -4,7 +4,7 @@ RSpec.shared_context 'use_record_processor' do
     end
 
     def process_records(records_input)
-      return if records_input.records.size == 0
+      return if records_input.records.empty?
       records_input.records.each do |record|
         process_record(record)
       end

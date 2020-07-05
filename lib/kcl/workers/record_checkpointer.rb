@@ -7,12 +7,7 @@ module Kcl::Workers
 
     def update_checkpoint(sequence_number)
       # checkpoint the last sequence of a closed shard
-      if sequence_number.nil?
-        @shard.checkpoint = Kcl::Checkpoints::Sentinel::SHARD_END
-      else
-        @shard.checkpoint = sequence_number
-      end
-
+      @shard.checkpoint = sequence_number || Kcl::Checkpoints::Sentinel::SHARD_END
       @checkpointer.update_checkpoint(@shard)
     end
   end

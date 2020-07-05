@@ -1,6 +1,6 @@
 module Kcl::Workers
   module ShutdownReason
-    TERMINATE = 'TERMINATE'
-    REQUESTED = 'REQUESTED'
+    TERMINATE = 'TERMINATE'.freeze
+    REQUESTED = 'REQUESTED'.freeze
   end
 end

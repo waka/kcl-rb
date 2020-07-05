@@ -4,14 +4,14 @@
 module Kcl::Checkpoints
   module Sentinel
     # Start from the first available record in the shard.
-    TRIM_HORIZON = 'TRIM_HORIZON'
+    TRIM_HORIZON = 'TRIM_HORIZON'.freeze
     # Start from the latest record in the shard.
-    LATEST       = 'LATEST'
+    LATEST       = 'LATEST'.freeze
     # We've completely processed all records in this shard.
-    SHARD_END    = 'SHARD_END'
+    SHARD_END    = 'SHARD_END'.freeze
     # Start from the record at or after the specified server-side timestamp.
-    AT_TIMESTAMP = 'AT_TIMESTAMP'
+    AT_TIMESTAMP = 'AT_TIMESTAMP'.freeze
     # Continue from the sequence number in the shard.
-    AFTER_SEQUENCE_NUMBER = 'AFTER_SEQUENCE_NUMBER'
+    AFTER_SEQUENCE_NUMBER = 'AFTER_SEQUENCE_NUMBER'.freeze
   end
 end
