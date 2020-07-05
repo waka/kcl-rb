@@ -9,19 +9,49 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    services:
+      localstack:
+        image: localstack/localstack:0.11.0
+        env:
+          DATA_DIR: /tmp/localstack/data
+          DEFAULT_REGION: ap-northeast-1
+          SERVICES: dynamodb,kinesis
+          USE_SSL: true
+
     steps:
-    - uses: actions/checkout@v2
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    - name: Set up AWS configuraton
+      run: |
+        mkdir -p ~/.aws
+        cp ./.aws/* ~/.aws/
+
+    - name: Set up Terraform
+      uses: hashicorp/setup-terraform@v1
+      with:
+        terraform_version: 0.12.24
+    - id: init
+      run: terraform init
+      working-directory: ${{ github.workspace }}/terraform
+    - id: apply
+      run: terraform apply -auto-approve -no-color
+      working-directory: ${{ github.workspace }}/terraform
 
     - name: Set up Ruby 2.7
       uses: actions/setup-ruby@v1
       with:
         ruby-version: 2.7
 
-    - name: Build
+    - name: Bundle install
       run: |
         gem install bundler
         bundle install --jobs 4 --retry 3
 
-    - name: Lint
+    - name: Rubocop
       run: |
         bundle exec rubocop
+
+    - name: RSpec
+      run: |
+        bundle exec rspec
