@@ -13,8 +13,8 @@ end
 task :seed do
   KclDemo::App.initialize
   record_count = Integer(ENV['RECORD_COUNT'] ||0)
-  if record_count == 0
-    puts "Set over 1 for RECORD_COUNT"
+  if record_count.zero?
+    puts 'Set over 1 for RECORD_COUNT'
     return
   end
   KclDemo::App.seed(record_count)
@@ -25,5 +25,7 @@ task :debug do
 
   kinesis = Kcl::Proxies::KinesisProxy.new(KclDemo::App.config)
   dynamodb = Kcl::Proxies::DynamoDbProxy.new(KclDemo::App.config)
+  # rubocop:disable Lint/Debugger
   binding.pry
+  # rubocop:enable Lint/Debugger
 end

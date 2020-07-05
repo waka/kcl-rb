@@ -34,9 +34,9 @@ class Kcl::Worker
 
     cleanup
     Kcl.logger.info("Finish worker at #{object_id}")
-  rescue => ex
-    Kcl.logger.error("#{ex.class}: #{ex.message}")
-    raise ex
+  rescue => e
+    Kcl.logger.error("#{e.class}: #{e.message}")
+    raise e
   end
 
   # Shutdown gracefully
@@ -48,9 +48,9 @@ class Kcl::Worker
     EM.stop
 
     Kcl.logger.info("Shutdown worker with signal #{signal} at #{object_id}")
-  rescue => ex
-    Kcl.logger.error("#{ex.class}: #{ex.message}")
-    raise ex
+  rescue => e
+    Kcl.logger.error("#{e.class}: #{e.message}")
+    raise e
   end
 
   # Cleanup resources
@@ -63,18 +63,17 @@ class Kcl::Worker
 
   # Add new shards and delete unused shards
   def sync_shards!
-    @live_shards.transform_values! {|_| false }
+    @live_shards.transform_values! { |_| false }
 
-    kinesis.get_shards.each do |shard|
+    kinesis.shards.each do |shard|
       @live_shards[shard.shard_id] = true
-      if @shards[shard.shard_id].nil?
-        @shards[shard.shard_id] = Kcl::Workers::ShardInfo.new(
-          shard.shard_id,
-          shard.parent_shard_id,
-          shard.sequence_number_range
-        )
-        Kcl.logger.info("Found new shard at shard_id: #{shard.shard_id}")
-      end
+      next if @shards[shard.shard_id]
+      @shards[shard.shard_id] = Kcl::Workers::ShardInfo.new(
+        shard.shard_id,
+        shard.parent_shard_id,
+        shard.sequence_number_range
+      )
+      Kcl.logger.info("Found new shard at shard_id: #{shard.shard_id}")
     end
 
     @live_shards.each do |shard_id, alive|

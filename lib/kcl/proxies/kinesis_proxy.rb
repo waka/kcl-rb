@@ -5,18 +5,20 @@ module Kcl::Proxies
     attr_reader :client
 
     def initialize(config)
-      @client = Aws::Kinesis::Client.new({
-        access_key_id: config.aws_access_key_id,
-        secret_access_key: config.aws_secret_access_key,
-        region: config.aws_region,
-        endpoint: config.kinesis_endpoint,
-        ssl_verify_peer: config.use_ssl,
-      })
+      @client = Aws::Kinesis::Client.new(
+        {
+          access_key_id: config.aws_access_key_id,
+          secret_access_key: config.aws_secret_access_key,
+          region: config.aws_region,
+          endpoint: config.kinesis_endpoint,
+          ssl_verify_peer: config.use_ssl
+        }
+      )
       @stream_name = config.kinesis_stream_name
     end
 
     # @return [Array]
-    def get_shards
+    def shards
       res = @client.describe_stream({ stream_name: @stream_name })
       res.stream_description.shards
     end

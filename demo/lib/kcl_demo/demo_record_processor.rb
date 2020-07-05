@@ -9,18 +9,25 @@ module KclDemo
 
     # @implement
     def process_records(records_input)
-      Kcl.logger.info("Processing records...")
+      Kcl.logger.info('Processing records...')
 
       # レコードのリストを取得
-      return if records_input.records.size == 0
+      return if records_input.records.empty?
+
+      # rubocop:disable Lint/Debugger
       binding.pry if ENV['DEBUG'] == '1'
+      # rubocop:enable Lint/Debugger
+
       records_input.records.each do |record|
         Kcl.logger.info("Record = #{record}")
       end
 
       # チェックポイントを記録
       last_sequence_number = records_input.records[-1].sequence_number
-      Kcl.logger.info("Checkpoint progress at: #{last_sequence_number}, MillisBehindLatest = #{records_input.millis_behind_latest}")
+      Kcl.logger.info(
+        "Checkpoint progress at: #{last_sequence_number}" \
+        ", MillisBehindLatest = #{records_input.millis_behind_latest}"
+      )
       records_input.record_checkpointer.update_checkpoint(last_sequence_number)
     end
 
@@ -34,4 +41,3 @@ module KclDemo
     end
   end
 end
-

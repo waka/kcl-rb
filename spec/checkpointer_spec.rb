@@ -15,7 +15,7 @@ RSpec.describe Kcl::Checkpointer do
   describe '#fetch_checkpoint' do
     subject { checkpointer.fetch_checkpoint(shard) }
 
-    it  do
+    it do
       expect(subject.shard_id).to eql(shard.shard_id)
       expect(subject.checkpoint).to eql(shard.checkpoint)
       expect(subject.assigned_to).to eql(shard.assigned_to)

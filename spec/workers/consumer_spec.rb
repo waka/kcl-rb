@@ -7,9 +7,9 @@ RSpec.describe Kcl::Workers::Consumer do
   let(:target_shard) { nil }
   let(:record_processor) { MockRecordProcessor.new }
   let(:checkpointer) { Kcl::Checkpointer.new(Kcl.config) }
-  let(:consumer) {
+  let(:consumer) do
     Kcl::Workers::Consumer.new(target_shard, record_processor, kinesis, checkpointer)
-  }
+  end
 
   describe '#start_shard_iterator' do
     let(:target_shard) { shard }
@@ -48,11 +48,13 @@ RSpec.describe Kcl::Workers::Consumer do
 
       before do
         # put data for 1st shard
-        kinesis.put_record({
-          stream_name: Kcl.config.kinesis_stream_name,
-          data: Base64.strict_encode64('test'),
-          partition_key: 'a'
-        })
+        kinesis.put_record(
+          {
+            stream_name: Kcl.config.kinesis_stream_name,
+            data: Base64.strict_encode64('test'),
+            partition_key: 'a'
+          }
+        )
 
         allow(record_processor).to receive(:process_record)
       end

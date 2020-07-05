@@ -46,8 +46,8 @@ module Kcl::Types
     # @param [String] str
     # @return [Boolean]
     def self.digits?(str)
-      return false if str.nil? || str.size == 0
-      nil != (str =~ /\A[0-9]+\z/)
+      return false if str.nil? || str.empty?
+      (str =~ /\A[0-9]+\z/) != nil
     end
 
     # @param [String] sequence_number

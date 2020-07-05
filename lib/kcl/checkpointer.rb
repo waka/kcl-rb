@@ -1,11 +1,11 @@
 require 'time'
 
 class Kcl::Checkpointer
-  DYNAMO_DB_LEASE_PRIMARY_KEY = 'shard_id'
-  DYNAMO_DB_LEASE_OWNER_KEY   = 'assigned_to'
-  DYNAMO_DB_LEASE_TIMEOUT_KEY = 'lease_timeout'
-  DYNAMO_DB_CHECKPOINT_SEQUENCE_NUMBER_KEY = 'checkpoint'
-  DYNAMO_DB_PARENT_SHARD_KEY  = 'parent_shard_id'
+  DYNAMO_DB_LEASE_PRIMARY_KEY = 'shard_id'.freeze
+  DYNAMO_DB_LEASE_OWNER_KEY   = 'assigned_to'.freeze
+  DYNAMO_DB_LEASE_TIMEOUT_KEY = 'lease_timeout'.freeze
+  DYNAMO_DB_CHECKPOINT_SEQUENCE_NUMBER_KEY = 'checkpoint'.freeze
+  DYNAMO_DB_PARENT_SHARD_KEY  = 'parent_shard_id'.freeze
 
   attr_reader :dynamodb
 
@@ -14,24 +14,23 @@ class Kcl::Checkpointer
     @dynamodb = Kcl::Proxies::DynamoDbProxy.new(config)
     @table_name = config.dynamodb_table_name
 
-    unless @dynamodb.exists?(@table_name)
-      @dynamodb.create_table(
-        @table_name,
-        [{
-          attribute_name: DYNAMO_DB_LEASE_PRIMARY_KEY,
-          attribute_type: 'S'
-        }],
-        [{
-          attribute_name: DYNAMO_DB_LEASE_PRIMARY_KEY,
-          key_type: 'HASH'
-        }],
-        {
-          read_capacity_units: config.dynamodb_read_capacity,
-          write_capacity_units: config.dynamodb_write_capacity
-        }
-      )
-      Kcl.logger.info("Created DynamoDB table: #{@table_name}")
-    end
+    return if @dynamodb.exists?(@table_name)
+    @dynamodb.create_table(
+      @table_name,
+      [{
+        attribute_name: DYNAMO_DB_LEASE_PRIMARY_KEY,
+        attribute_type: 'S'
+      }],
+      [{
+        attribute_name: DYNAMO_DB_LEASE_PRIMARY_KEY,
+        key_type: 'HASH'
+      }],
+      {
+        read_capacity_units: config.dynamodb_read_capacity,
+        write_capacity_units: config.dynamodb_write_capacity
+      }
+    )
+    Kcl.logger.info("Created DynamoDB table: #{@table_name}")
   end
 
   # Retrieves the checkpoint for the given shard
@@ -98,7 +97,7 @@ class Kcl::Checkpointer
       if now > Time.parse(lease_timeout) && assigned_to != next_assigned_to
         raise Kcl::Errors::LeaseNotAquiredError
       end
-      condition_expression = "shard_id = :shard_id AND assigned_to = :assigned_to AND lease_timeout = :lease_timeout"
+      condition_expression = 'shard_id = :shard_id AND assigned_to = :assigned_to AND lease_timeout = :lease_timeout'
       expression_attributes = {
         ':shard_id' => shard.shard_id,
         ':assigned_to' => assigned_to,
