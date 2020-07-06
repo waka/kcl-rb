@@ -15,14 +15,8 @@ services:
       - DATA_DIR=/tmp/localstack/data
       - DEBUG=${LOCALSTACK_DEBUG:-true}
       - DEFAULT_REGION=ap-northeast-1
-      - DOCKER_HOST=unix:///var/run/docker.sock
-      - HOSTNAME=${LOCALSTACK_HOSTNAME:-localhost}
-      - LAMBDA_DOCKER_NETWORK=host
-      - LAMBDA_EXECUTOR=docker
-      - LOCALSTACK_HOSTNAME=${LOCALSTACK_INTERNAL_HOSTNAME:-localstack}
       - SERVICES=dynamodb,kinesis
       - USE_SSL=true
     volumes:
       - "${PWD}/aws:/root/.aws"
-      - "/var/run/docker.sock:/var/run/docker.sock"
       - "localstack-data:/tmp/localstack"
