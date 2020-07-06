@@ -9,28 +9,12 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    services:
-      localstack:
-        image: localstack/localstack:0.11.0
-        ports:
-          - 4566:4566
-        env:
-          DATA_DIR: /tmp/localstack/data
-          DEFAULT_REGION: ap-northeast-1
-          SERVICES: dynamodb,kinesis
-          USE_SSL: true
-        volumes:
-          - ${{ github.workspace }}/aws:/root/.aws
-          - localstack-data:/tmp/localstack
-
     steps:
     - name: Checkout
       uses: actions/checkout@v2
 
-    - name: Set up AWS configuraton
-      run: |
-        mkdir -p ~/.aws
-        cp ./aws/* ~/.aws/
+    - name: Up docker-compose
+      run: docker-compose -f docker-compose.yml up -d
 
     - name: Set up Terraform
       uses: hashicorp/setup-terraform@v1
