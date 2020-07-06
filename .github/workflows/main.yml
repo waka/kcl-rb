@@ -23,6 +23,11 @@ jobs:
     - name: Up docker-compose
       run: docker-compose -f docker-compose.yml up -d
 
+    - name: Sleep for 30 seconds
+      uses: jakejarvis/wait-action@master
+      with:
+        time: '30s'
+
     - name: Set up Terraform
       uses: hashicorp/setup-terraform@v1
       with:
