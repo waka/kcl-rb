@@ -45,7 +45,7 @@ Style/AsciiComments:
   Enabled: false
 
 Style/ClassAndModuleChildren:
-  Enabled: false
+  EnforcedStyle: nested
 
 Style/Documentation:
   Enabled: false
@@ -64,7 +64,7 @@ Style/GuardClause:
 
 Style/HashSyntax:
   Enabled: false
- 
+
 Style/IfUnlessModifier:
   Enabled: false
 
