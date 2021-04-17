@@ -8,12 +8,8 @@ module Kcl
       def initialize(config)
         @client = Aws::Kinesis::Client.new(
           {
-            access_key_id: config.aws_access_key_id,
-            secret_access_key: config.aws_secret_access_key,
-            region: config.aws_region,
-            endpoint: config.kinesis_endpoint,
-            ssl_verify_peer: config.use_ssl
-          }
+            endpoint: config.kinesis_endpoint
+          }.compact
         )
         @stream_name = config.kinesis_stream_name
       end
