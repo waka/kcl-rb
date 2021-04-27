@@ -9,8 +9,7 @@ module Kcl
       :kinesis_stream_name,
       :logger,
       :log_level,
-      :max_lease_count,
-      :worker_count
+      :max_lease_count
 
     # Set default values
     def initialize
@@ -23,7 +22,6 @@ module Kcl
       @kinesis_stream_name     = nil
       @logger                  = nil
       @max_lease_count         = 2
-      @worker_count            = 2
     end
   end
 end

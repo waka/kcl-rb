@@ -1,8 +1,8 @@
-require 'eventmachine'
+require "eventmachine"
 
 module Kcl
   class Worker
-    PROCESS_INTERVAL = 1 # by sec
+    PROCESS_INTERVAL = 0.5 # by sec
 
     def self.run(id, record_processor_factory)
       worker = self.new(id, record_processor_factory)
