@@ -2,7 +2,7 @@ require "eventmachine"
 
 module Kcl
   class Worker
-    PROCESS_INTERVAL = 0.5 # by sec
+    PROCESS_INTERVAL = 1 # by sec
 
     def self.run(id, record_processor_factory)
       worker = self.new(id, record_processor_factory)
@@ -13,11 +13,24 @@ module Kcl
       @id = id
       @record_processor_factory = record_processor_factory
       @live_shards  = {} # Map<String, Boolean>
-      @shards       = {} # Map<String, Kcl::Workers::ShardInfo>
-      @kinesis      = nil # Kcl::Proxies::KinesisProxy
+      @shards = {} # Map<String, Kcl::Workers::ShardInfo>
+      @kinesis = nil # Kcl::Proxies::KinesisProxy
       @checkpointer = nil # Kcl::Checkpointer
-      @timer        = nil
+      @timer = nil
+      @consumers = []
     end
+
+    # process 1                               process 2
+    # kinesis.shards sync periodically
+    # shards.start
+    # go through shards, assign itself
+    # on finish shard, release shard
+    #
+    # kinesis.shards sync periodically in parallel thread
+    #
+
+    # consumer should not block main thread
+    # available_lease_shard? should divide all possible shards by worker ids
 
     # Start consuming data from the stream,
     # and pass it to the application record processors.
@@ -29,7 +42,7 @@ module Kcl
 
         @timer = EM::PeriodicTimer.new(PROCESS_INTERVAL) do
           sync_shards!
-          consume_shards! if available_lease_shard?
+          consume_shards!
         end
       end
 
@@ -56,10 +69,11 @@ module Kcl
 
     # Cleanup resources
     def cleanup
-      @live_shards  = {}
-      @shards       = {}
-      @kinesis      = nil
+      @live_shards = {}
+      @shards = {}
+      @kinesis = nil
       @checkpointer = nil
+      @consumers = []
     end
 
     # Add new shards and delete unused shards
@@ -88,20 +102,26 @@ module Kcl
     end
 
     # Count the number of leases hold by worker excluding the processed shard
-    # @return [Boolean]
-    def available_lease_shard?
-      leased_count = @shards.values.inject(0) do |num, shard|
-        shard.lease_owner == @id && !shard.completed? ? num + 1 : num
+    def avaliable_leases_count
+      stats = @shards.values.inject(Hash.new(0)) do |memo, shard|
+        memo[shard.lease_owner] += 1 unless shard.completed?
+        memo
       end
-      Kcl.config.max_lease_count > leased_count
+
+      stats.values.sum / [stats.keys.compact.count - stats[@id], 1].max
     end
 
     # Process records by shard
     def consume_shards!
-      threads = []
+      @consumers.delete_if { |consumer| !consumer.alive? }
+      counter = 0
+
       @shards.each do |shard_id, shard|
-        # already owner of the shard
-        next if shard.lease_owner == @id
+        # break if available_leases_count is not positive
+        break if counter >= avaliable_leases_count
+
+        # the shard has owner already
+        next if shard.lease_owner.present?
 
         begin
           shard = checkpointer.fetch_checkpoint(shard)
@@ -109,12 +129,21 @@ module Kcl
           Kcl.logger.info("Not found checkpoint of shard at #{shard.to_h}")
           next
         end
+
         # shard is closed and processed all records
         next if shard.completed?
 
-        shard = checkpointer.lease(shard, @id)
+        # count the shard as consumed
+        begin
+          shard = checkpointer.lease(shard, @id)
+        rescue Aws::DynamoDB::Errors::ConditionalCheckFailedException
+          Kcl.logger.info("Lease failed of shard at #{shard.to_h}")
+          next
+        end
 
-        threads << Thread.new do
+        counter += 1
+
+        @consumers << Thread.new do
           begin
             consumer = Kcl::Workers::Consumer.new(
               shard,
@@ -129,7 +158,6 @@ module Kcl
           end
         end
       end
-      threads.each(&:join)
     end
 
     private
