@@ -21,7 +21,7 @@ module Kcl
       @kinesis_endpoint = nil
       @kinesis_stream_name = nil
       @logger = nil
-      @max_records = 1000
+      @max_records = 10
     end
   end
 end

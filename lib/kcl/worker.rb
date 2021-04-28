@@ -55,10 +55,9 @@ module Kcl
 
     # Shutdown gracefully
     def shutdown(signal = :NONE)
-      unless @timer.nil?
-        @timer.cancel
-        @timer = nil
-      end
+      terminate_timer!
+      terminate_consumers!
+
       EM.stop
 
       Kcl.logger.info("Shutdown worker with signal #{signal} at #{object_id}")
@@ -74,6 +73,22 @@ module Kcl
       @kinesis = nil
       @checkpointer = nil
       @consumers = []
+    end
+
+
+    def terminate_consumers!
+      Kcl.logger.info("Stop #{@consumers.count} consumers in draining mode...")
+      @consumers.each do |consumer|
+        consumer[:stop] = true
+        consumer.join
+      end
+    end
+
+    def terminate_timer!
+      unless @timer.nil?
+        @timer.cancel
+        @timer = nil
+      end
     end
 
     # Add new shards and delete unused shards

@@ -30,7 +30,7 @@ module Kcl
           @record_processor.process_records(records_input)
 
           shard_iterator = result[:next_shard_iterator]
-          break if result[:records].empty? || shard_iterator.nil?
+          break if result[:records].empty? || shard_iterator.nil? || Thread.current[:stop]
         end
 
         shutdown_reason = shard_iterator.nil? ?
