@@ -65,7 +65,8 @@ module Kcl
         "#{DYNAMO_DB_LEASE_OWNER_KEY}" => shard.assigned_to,
         "#{DYNAMO_DB_LEASE_TIMEOUT_KEY}" => shard.lease_timeout.to_s
       }
-      if shard.parent_shard_id > 0
+
+      if shard.parent_shard_id != 0
         item[DYNAMO_DB_PARENT_SHARD_KEY] = shard.parent_shard_id
       end
 
@@ -115,10 +116,12 @@ module Kcl
         "#{DYNAMO_DB_LEASE_OWNER_KEY}"   => next_assigned_to,
         "#{DYNAMO_DB_LEASE_TIMEOUT_KEY}" => next_lease_timeout.to_s
       }
+
       if shard.checkpoint != ''
         item[DYNAMO_DB_CHECKPOINT_SEQUENCE_NUMBER_KEY] = shard.checkpoint
       end
-      if shard.parent_shard_id > 0
+
+      if shard.parent_shard_id != 0
         item[DYNAMO_DB_PARENT_SHARD_KEY] = shard.parent_shard_id
       end
 
