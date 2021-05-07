@@ -140,15 +140,10 @@ module Kcl
     # Process records by shard
     def consume_shards!
       counter = 0
+      @available_leases_count = avaliable_leases_count
       @consumers.delete_if { |consumer| !consumer.alive? }
-
-      @shards.each do |shard_id, shard|
+      @shards.sort_by { |_k, v| v }.reverse.to_h.each do |shard_id, shard|
         Kcl.logger.info("available: #{avaliable_leases_count}")
-        # break if available_leases_count is not positive
-        break if counter >= avaliable_leases_count
-
-        # the shard has owner already
-        next if shard.lease_owner.present?
 
         begin
           shard = checkpointer.fetch_checkpoint(shard)
@@ -157,8 +152,14 @@ module Kcl
           next
         end
 
+        # the shard has owner already
+        next if shard.lease_owner.present?
+
         # shard is closed and processed all records
         next if shard.completed?
+
+        # break if available_leases_count is not positive
+        break if counter >= @available_leases_count
 
         # count the shard as consumed
         begin

@@ -32,6 +32,15 @@ module Kcl
         @checkpoint == Kcl::Checkpoints::Sentinel::SHARD_END
       end
 
+      def <=>(comparable)
+        puts lease_timeout, comparable.lease_timeout
+        return 1 unless lease_timeout
+        return -1 unless comparable.lease_timeout
+        puts lease_timeout <=> comparable.lease_timeout
+
+        lease_timeout <=> comparable.lease_timeout
+      end
+
       # For debug
       def to_h
         {

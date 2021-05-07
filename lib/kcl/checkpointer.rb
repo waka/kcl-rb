@@ -50,6 +50,9 @@ module Kcl
       if checkpoint[DYNAMO_DB_LEASE_OWNER_KEY]
         shard.assigned_to = checkpoint[DYNAMO_DB_LEASE_OWNER_KEY]
       end
+      if checkpoint[DYNAMO_DB_LEASE_TIMEOUT_KEY]
+        shard.lease_timeout = Time.parse(checkpoint[DYNAMO_DB_LEASE_TIMEOUT_KEY])
+      end
       Kcl.logger.info("Retrieves checkpoint of shard at #{shard.to_h}")
 
       shard
