@@ -27,6 +27,13 @@ module Kcl
   end
 
   def self.logger
-    @_logger ||= (config.logger || Kcl::Logger.new($stdout))
+    @_logger ||= begin
+      kcl_logger = config.logger || Kcl::Logger.new($stdout)
+      original_formatter = Logger::Formatter.new
+      kcl_logger.formatter = proc { |severity, datetime, progname, msg|
+        original_formatter.call(severity, datetime, "#{progname}-#{Thread.current.object_id}", msg.dump)
+      }
+      kcl_logger
+    end
   end
 end

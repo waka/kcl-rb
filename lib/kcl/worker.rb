@@ -2,7 +2,7 @@ require "eventmachine"
 
 module Kcl
   class Worker
-    PROCESS_INTERVAL = 1 # by sec
+    PROCESS_INTERVAL = 2 # by sec
 
     def self.run(id, record_processor_factory)
       worker = self.new(id, record_processor_factory)
@@ -14,10 +14,10 @@ module Kcl
       @record_processor_factory = record_processor_factory
       @live_shards  = {} # Map<String, Boolean>
       @shards = {} # Map<String, Kcl::Workers::ShardInfo>
+      @consumers = [] # [Array<Thread>] args the arguments passed from input. This array will be modified.
       @kinesis = nil # Kcl::Proxies::KinesisProxy
       @checkpointer = nil # Kcl::Checkpointer
       @timer = nil
-      @consumers = []
     end
 
     # process 1                               process 2
@@ -41,6 +41,7 @@ module Kcl
         trap_signals
 
         @timer = EM::PeriodicTimer.new(PROCESS_INTERVAL) do
+          Kcl.logger.info("threads count: #{@consumers.count}")
           sync_shards!
           consume_shards!
         end
@@ -78,6 +79,8 @@ module Kcl
 
     def terminate_consumers!
       Kcl.logger.info("Stop #{@consumers.count} consumers in draining mode...")
+
+      # except main thread
       @consumers.each do |consumer|
         consumer[:stop] = true
         consumer.join
@@ -123,15 +126,24 @@ module Kcl
         memo
       end
 
-      stats.values.sum / [stats.keys.compact.count - stats[@id], 1].max
+      Kcl.logger.info("stats: #{stats} #{@id}")
+      number_of_workers = stats.keys.compact.push(@id).uniq.count
+      shards_per_worker = @shards.count.to_f / number_of_workers
+
+      return stats[nil] if number_of_workers == 1 # all free shards are available if there is single worker
+      return 0 if stats[@id] >= shards_per_worker # no shards are available if current worker already took his portion of shards
+      return stats[nil] if stats[nil] < 2 # if there are not to much free shards - take all of them
+
+      [shards_per_worker.round - stats[@id], stats[nil]].min # how many free shards the worker can take
     end
 
     # Process records by shard
     def consume_shards!
-      @consumers.delete_if { |consumer| !consumer.alive? }
       counter = 0
+      @consumers.delete_if { |consumer| !consumer.alive? }
 
       @shards.each do |shard_id, shard|
+        Kcl.logger.info("available: #{avaliable_leases_count}")
         # break if available_leases_count is not positive
         break if counter >= avaliable_leases_count
 

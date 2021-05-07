@@ -95,9 +95,9 @@ module Kcl
       assigned_to   = checkpoint && checkpoint[DYNAMO_DB_LEASE_OWNER_KEY]
       lease_timeout = checkpoint && checkpoint[DYNAMO_DB_LEASE_TIMEOUT_KEY]
 
-      if assigned_to && lease_timeout
+      if assigned_to && next_assigned_to && lease_timeout
         if now > Time.parse(lease_timeout) && assigned_to != next_assigned_to
-          raise Kcl::Errors::LeaseNotAquiredError
+          Kcl.logger.info("Force lock for shard: #{shard.to_h}; previous owner #{assigned_to} didn't finish the processing by #{lease_timeout}")
         end
         condition_expression = 'shard_id = :shard_id AND assigned_to = :assigned_to AND lease_timeout = :lease_timeout'
         expression_attributes = {
