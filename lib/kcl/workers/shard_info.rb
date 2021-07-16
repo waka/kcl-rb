@@ -33,11 +33,8 @@ module Kcl
       end
 
       def <=>(comparable)
-        puts lease_timeout, comparable.lease_timeout
         return 1 unless lease_timeout
         return -1 unless comparable.lease_timeout
-        puts lease_timeout <=> comparable.lease_timeout
-
         lease_timeout <=> comparable.lease_timeout
       end
 

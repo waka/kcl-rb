@@ -3,6 +3,7 @@ require 'kcl/checkpoints/sentinel'
 require 'kcl/config'
 require 'kcl/errors'
 require 'kcl/logger'
+require 'kcl/log_formatter'
 require 'kcl/proxies/dynamo_db_proxy'
 require 'kcl/proxies/kinesis_proxy'
 require 'kcl/record_processor'
@@ -29,10 +30,7 @@ module Kcl
   def self.logger
     @_logger ||= begin
       kcl_logger = config.logger || Kcl::Logger.new($stdout)
-      original_formatter = Logger::Formatter.new
-      kcl_logger.formatter = proc { |severity, datetime, progname, msg|
-        original_formatter.call(severity, datetime, "#{progname}-#{Thread.current.object_id}", msg.dump)
-      }
+      kcl_logger.formatter = Kcl::LogFormatter.new
       kcl_logger
     end
   end

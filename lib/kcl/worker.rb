@@ -35,7 +35,7 @@ module Kcl
     # Start consuming data from the stream,
     # and pass it to the application record processors.
     def start
-      Kcl.logger.info("Start worker at #{object_id}")
+      Kcl.logger.info(message: "Start worker", object_id: object_id)
 
       EM.run do
         trap_signals
@@ -48,9 +48,9 @@ module Kcl
       end
 
       cleanup
-      Kcl.logger.info("Finish worker at #{object_id}")
+      Kcl.logger.info(message: "Finish worker", object_id: object_id)
     rescue => e
-      Kcl.logger.error("#{e.class}: #{e.message}")
+      Kcl.logger.error(e)
       raise e
     end
 
@@ -61,9 +61,9 @@ module Kcl
 
       EM.stop
 
-      Kcl.logger.info("Shutdown worker with signal #{signal} at #{object_id}")
+      Kcl.logger.info(message: "Shutdown worker with signal #{signal} at #{object_id}")
     rescue => e
-      Kcl.logger.error("#{e.class}: #{e.message}")
+      Kcl.logger.error(e)
       raise e
     end
 
@@ -78,7 +78,7 @@ module Kcl
 
 
     def terminate_consumers!
-      Kcl.logger.info("Stop #{@consumers.count} consumers in draining mode...")
+      Kcl.logger.info(message: "Stop #{@consumers.count} consumers in draining mode...")
 
       # except main thread
       @consumers.each do |consumer|
@@ -106,14 +106,14 @@ module Kcl
           shard.parent_shard_id,
           shard.sequence_number_range
         )
-        Kcl.logger.info("Found new shard at shard_id: #{shard.shard_id}")
+        Kcl.logger.info(message: "Found new shard", shard:  shard.to_h)
       end
 
       @live_shards.each do |shard_id, alive|
         next if alive
         checkpointer.remove_lease(@shards[shard_id])
         @shards.delete(shard_id)
-        Kcl.logger.info("Remove shard at shard_id: #{shard_id}")
+        Kcl.logger.info(message: "Remove shard", shard_id:  shard_id)
       end
 
       @shards
@@ -126,7 +126,8 @@ module Kcl
         memo
       end
 
-      Kcl.logger.info("stats: #{stats} #{@id}")
+      Kcl.logger.debug(message: "Stats", stats: stats)
+      Kcl.logger.debug(message: "Workers", workers: stats.keys.compact.push(@id).uniq)
       number_of_workers = stats.keys.compact.push(@id).uniq.count
       shards_per_worker = @shards.count.to_f / number_of_workers
 
@@ -142,13 +143,14 @@ module Kcl
       counter = 0
       @available_leases_count = avaliable_leases_count
       @consumers.delete_if { |consumer| !consumer.alive? }
+
       @shards.sort_by { |_k, v| v }.reverse.to_h.each do |shard_id, shard|
-        Kcl.logger.info("available: #{avaliable_leases_count}")
+        Kcl.logger.debug(message: "Available leases", count: avaliable_leases_count)
 
         begin
           shard = checkpointer.fetch_checkpoint(shard)
         rescue Kcl::Errors::CheckpointNotFoundError
-          Kcl.logger.info("Not found checkpoint of shard at #{shard.to_h}")
+          Kcl.logger.warn(message: "Not found checkpoint of shard", shard: shard.to_h)
           next
         end
 
@@ -165,7 +167,7 @@ module Kcl
         begin
           shard = checkpointer.lease(shard, @id)
         rescue Aws::DynamoDB::Errors::ConditionalCheckFailedException
-          Kcl.logger.info("Lease failed of shard at #{shard.to_h}")
+          Kcl.logger.warn(message: "Lease failed of shard", shard: shard.to_h)
           next
         end
 
@@ -182,7 +184,7 @@ module Kcl
             consumer.consume!
           ensure
             shard = checkpointer.remove_lease_owner(shard)
-            Kcl.logger.info("Finish to consume shard at shard_id: #{shard_id}")
+            Kcl.logger.info(message: "Finish to consume shard at shard_id", shard_id: shard_id)
           end
         end
       end
@@ -193,7 +195,7 @@ module Kcl
     def kinesis
       if @kinesis.nil?
         @kinesis = Kcl::Proxies::KinesisProxy.new(Kcl.config)
-        Kcl.logger.info('Created Kinesis session in worker')
+        Kcl.logger.info(message: "Created Kinesis session in worker")
       end
       @kinesis
     end
@@ -201,7 +203,7 @@ module Kcl
     def checkpointer
       if @checkpointer.nil?
         @checkpointer = Kcl::Checkpointer.new(Kcl.config)
-        Kcl.logger.info('Created Checkpoint in worker')
+        Kcl.logger.info(message: "Created Checkpoint in worker")
       end
       @checkpointer
     end

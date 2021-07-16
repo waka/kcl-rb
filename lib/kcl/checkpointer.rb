@@ -31,7 +31,7 @@ module Kcl
           write_capacity_units: config.dynamodb_write_capacity
         }
       )
-      Kcl.logger.info("Created DynamoDB table: #{@table_name}")
+      Kcl.logger.info(message: "Created DynamoDB table", table_name: @table_name)
     end
 
     # Retrieves the checkpoint for the given shard
@@ -53,7 +53,7 @@ module Kcl
       if checkpoint[DYNAMO_DB_LEASE_TIMEOUT_KEY]
         shard.lease_timeout = Time.parse(checkpoint[DYNAMO_DB_LEASE_TIMEOUT_KEY])
       end
-      Kcl.logger.info("Retrieves checkpoint of shard at #{shard.to_h}")
+      Kcl.logger.info(message: "Retrieves checkpoint of shard", shard: shard.to_h)
 
       shard
     end
@@ -75,9 +75,9 @@ module Kcl
 
       result = @dynamodb.put_item(@table_name, item)
       if result
-        Kcl.logger.info("Write checkpoint of shard at #{shard.to_h}")
+        Kcl.logger.info(message: "Write checkpoint of shard", shard: shard.to_h)
       else
-        Kcl.logger.info("Failed to write checkpoint for shard at #{shard.to_h}")
+        Kcl.logger.warn(message: "Failed write checkpoint of shard", shard: shard.to_h)
       end
 
       shard
@@ -100,7 +100,7 @@ module Kcl
 
       if assigned_to && next_assigned_to && lease_timeout
         if now > Time.parse(lease_timeout) && assigned_to != next_assigned_to
-          Kcl.logger.info("Force lock for shard: #{shard.to_h}; previous owner #{assigned_to} didn't finish the processing by #{lease_timeout}")
+          Kcl.logger.warn(message: "Force lock for shard", shard: shard.to_h, previous_owner: assigned_to, reason: "Not finished processing by #{lease_timeout}")
         end
         condition_expression = 'shard_id = :shard_id AND assigned_to = :assigned_to AND lease_timeout = :lease_timeout'
         expression_attributes = {
@@ -108,7 +108,6 @@ module Kcl
           ':assigned_to' => assigned_to,
           ':lease_timeout' => lease_timeout
         }
-        Kcl.logger.info("Attempting to get a lock for shard: #{shard.to_h}")
       else
         condition_expression = 'attribute_not_exists(assigned_to)'
         expression_attributes = nil
@@ -137,9 +136,8 @@ module Kcl
       if result
         shard.assigned_to   = next_assigned_to
         shard.lease_timeout = next_lease_timeout
-        Kcl.logger.info("Get lease for shard at #{shard.to_h}")
       else
-        Kcl.logger.info("Failed to get lease for shard at #{shard.to_h}")
+        Kcl.logger.warn(mesage: "Failed to get lease for shard at", shard: shard.to_h)
       end
 
       shard
@@ -157,9 +155,8 @@ module Kcl
         shard.assigned_to   = nil
         shard.checkpoint    = nil
         shard.lease_timeout = nil
-        Kcl.logger.info("Remove lease for shard at #{shard.to_h}")
       else
-        Kcl.logger.info("Failed to remove lease for shard at #{shard.to_h}")
+        Kcl.logger.warn(message: "Failed to remove lease for shard", shard: shard.to_h)
       end
 
       shard
@@ -176,9 +173,8 @@ module Kcl
       )
       if result
         shard.assigned_to = nil
-        Kcl.logger.info("Remove lease owner for shard at #{shard.to_h}")
       else
-        Kcl.logger.info("Failed to remove lease owner for shard at #{shard.to_h}")
+        Kcl.logger.warn(message: "Failed to remove lease owner for shard", shard: shard.to_h)
       end
 
       shard
