@@ -1,4 +1,5 @@
 require "eventmachine"
+require "securerandom"
 
 module Kcl
   class Worker
@@ -41,7 +42,7 @@ module Kcl
         trap_signals
 
         @timer = EM::PeriodicTimer.new(PROCESS_INTERVAL) do
-          Kcl.logger.info("threads count: #{@consumers.count}")
+          Thread.current[:uuid] = SecureRandom.uuid
           sync_shards!
           consume_shards!
         end
@@ -175,6 +176,7 @@ module Kcl
 
         @consumers << Thread.new do
           begin
+            Thread.current[:uuid] = SecureRandom.uuid
             consumer = Kcl::Workers::Consumer.new(
               shard,
               @record_processor_factory.create_processor,
@@ -184,7 +186,7 @@ module Kcl
             consumer.consume!
           ensure
             shard = checkpointer.remove_lease_owner(shard)
-            Kcl.logger.info(message: "Finish to consume shard at shard_id", shard_id: shard_id)
+            Kcl.logger.info(message: "Finish to consume shard", shard_id: shard_id)
           end
         end
       end

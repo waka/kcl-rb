@@ -10,6 +10,7 @@ module Kcl
         pid: Process.pid,
         level: severity,
         time: format_datetime(time).strip,
+        **uuid,
         **payload,
         **tags
       }
@@ -18,6 +19,14 @@ module Kcl
     end
 
     private
+
+      def uuid
+        return {} unless Thread.current[:uuid]
+
+        {
+          uuid: Thread.current[:uuid],
+        }
+      end
 
       def extract(msg)
         return msg if msg.is_a?(Hash)
