@@ -16,14 +16,14 @@ RSpec.describe Kcl::Worker do
   end
 
   describe '#available_lease_shard?' do
-    subject { worker.available_lease_shard? }
+    subject { worker.avaliable_leases_count }
 
     context 'before consume' do
       before do
         worker.sync_shards!
       end
 
-      it { expect(subject).to be_truthy }
+      it { expect(subject).to be_positive }
     end
 
     context 'after consume' do
@@ -37,7 +37,7 @@ RSpec.describe Kcl::Worker do
         worker.consume_shards!
       end
 
-      it { expect(subject).to be_truthy }
+      it { expect(subject).to be_positive }
     end
   end
 end
