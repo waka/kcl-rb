@@ -41,7 +41,7 @@ RSpec.describe Kcl::Checkpointer do
     let(:next_assigned_to) { 'test-worker' }
 
     before do
-      checkpointer.lease(shard, next_assigned_to)
+      checkpointer.lease(checkpointer.fetch_checkpoint(shard), next_assigned_to)
     end
 
     subject { checkpointer.fetch_checkpoint(shard) }
@@ -56,7 +56,7 @@ RSpec.describe Kcl::Checkpointer do
     let(:next_assigned_to) { 'test-worker' }
 
     before do
-      checkpointer.lease(shard, next_assigned_to)
+      checkpointer.lease(checkpointer.fetch_checkpoint(shard), next_assigned_to)
       checkpointer.remove_lease(shard)
     end
 

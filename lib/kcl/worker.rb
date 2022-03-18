@@ -170,7 +170,7 @@ module Kcl
 
       unless @stats == stats
         @stats = stats
-        Kcl.logger.info(message: "Balancer stats", **stats)
+        Kcl.logger.info(message: "Rebalancing...", **stats)
       end
 
       @shards.each do |shard_id, shard|
