@@ -100,13 +100,15 @@ module Kcl
       now = Time.now.utc
       next_lease_timeout = now + Kcl.config.dynamodb_failover_seconds
 
-      if shard.lease_timeout
+      item_exists = @dynamodb.get_item(@table_name, { "#{DYNAMO_DB_LEASE_PRIMARY_KEY}" => shard.shard_id })
+
+      if item_exists && shard.lease_timeout
         condition_expression = 'shard_id = :shard_id AND lease_timeout = :lease_timeout'
         expression_attributes = {
           ':shard_id' => shard.shard_id,
           ':lease_timeout' => shard.lease_timeout
         }
-      elsif @dynamodb.get_item(@table_name, { "#{DYNAMO_DB_LEASE_PRIMARY_KEY}" => shard.shard_id })
+      elsif item_exists
         condition_expression = 'shard_id = :shard_id AND attribute_not_exists(lease_timeout)'
         expression_attributes = {
           ':shard_id' => shard.shard_id
