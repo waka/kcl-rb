@@ -46,7 +46,7 @@ module Kcl
       end
 
       def abendoned?
-        (lease_owner.blank? && new_owner.blank?) ||
+        (lease_owner.to_s.empty? && new_owner.to_s.empty?) ||
         # twice more time for abendoned detection
         !lease_timeout || Time.now.utc - Kcl.config.dynamodb_failover_seconds > lease_timeout_datetime
       end
@@ -60,7 +60,7 @@ module Kcl
       end
 
       def lease_timeout_datetime
-        return nil if lease_timeout.blank?
+        return nil if lease_timeout.to_s.empty?
         Time.parse(lease_timeout)
       end
 
