@@ -5,7 +5,7 @@ module Kcl
         :parent_shard_id,
         :starting_sequence_number,
         :ending_sequence_number
-      attr_accessor :assigned_to, :checkpoint, :lease_timeout
+      attr_accessor :assigned_to, :reassign_to, :checkpoint, :lease_timeout
 
       # @param [String] shard_id
       # @param [String] parent_shard_id
@@ -16,6 +16,7 @@ module Kcl
         @starting_sequence_number = sequence_number_range[:starting_sequence_number]
         @ending_sequence_number   = sequence_number_range[:ending_sequence_number]
         @assigned_to     = nil
+        @reassign_to     = nil
         @checkpoint      = nil
         @lease_timeout   = nil
       end
@@ -28,14 +29,39 @@ module Kcl
         @assigned_to = assigned_to
       end
 
+      def new_owner
+        @reassign_to
+      end
+
+      def new_owner=(assigned_to)
+        @reassign_to = assigned_to
+      end
+
       def completed?
         @checkpoint == Kcl::Checkpoints::Sentinel::SHARD_END
       end
 
-      def <=>(comparable)
-        return 1 unless lease_timeout
-        return -1 unless comparable.lease_timeout
-        lease_timeout <=> comparable.lease_timeout
+      def unlocked?
+        !lease_timeout || Time.now.utc > lease_timeout_datetime
+      end
+
+      def abendoned?
+        (lease_owner.blank? && new_owner.blank?) ||
+        # twice more time for abendoned detection
+        !lease_timeout || Time.now.utc - Kcl.config.dynamodb_failover_seconds > lease_timeout_datetime
+      end
+
+      def can_be_owned_by?(id)
+        (!lease_owner || unlocked?) && (!new_owner || new_owner == id || abendoned?)
+      end
+
+      def change_owner?
+        new_owner && lease_owner && new_owner != lease_owner
+      end
+
+      def lease_timeout_datetime
+        return nil if lease_timeout.blank?
+        Time.parse(lease_timeout)
       end
 
       # For debug

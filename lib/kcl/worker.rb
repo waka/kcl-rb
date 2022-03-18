@@ -44,6 +44,8 @@ module Kcl
         @timer = EM::PeriodicTimer.new(PROCESS_INTERVAL) do
           Thread.current[:uuid] = SecureRandom.uuid
           sync_shards!
+          rebalance_shards!
+          cleanup_dead_consumers
           consume_shards!
         end
       end
@@ -107,87 +109,127 @@ module Kcl
           shard.parent_shard_id,
           shard.sequence_number_range
         )
+
         Kcl.logger.info(message: "Found new shard", shard:  shard.to_h)
       end
 
       @live_shards.each do |shard_id, alive|
-        next if alive
-        checkpointer.remove_lease(@shards[shard_id])
-        @shards.delete(shard_id)
-        Kcl.logger.info(message: "Remove shard", shard_id:  shard_id)
+        if alive
+          begin
+            @shards[shard_id] = checkpointer.fetch_checkpoint(@shards[shard_id])
+          rescue Kcl::Errors::CheckpointNotFoundError
+            Kcl.logger.warn(message: "Not found checkpoint of shard", shard: shard.to_h)
+            next
+          end
+        else
+          checkpointer.remove_lease(@shards[shard_id])
+          @shards.delete(shard_id)
+          Kcl.logger.info(message: "Remove shard", shard_id:  shard_id)
+        end
       end
 
       @shards
     end
 
-    # Count the number of leases hold by worker excluding the processed shard
-    def avaliable_leases_count
-      stats = @shards.values.inject(Hash.new(0)) do |memo, shard|
-        memo[shard.lease_owner] += 1 unless shard.completed?
-        memo
+    def groups_stats
+      @shards.group_by {|k, shard| shard.lease_owner }.transform_values {|v| v.map(&:first) }
+    end
+
+    def detailed_stats
+      owner_stats = Hash.new(0)
+      reassign_count = 0
+      shards_count = 0
+      workers = [@id]
+
+      @shards.each do |shard_id, shard|
+        next if shard.completed?
+
+        shards_count += 1
+        owner_stats[shard.lease_owner] += 1
+        workers << shard.lease_owner unless shard.abendoned?
       end
 
-      Kcl.logger.debug(message: "Stats", stats: stats)
-      Kcl.logger.debug(message: "Workers", workers: stats.keys.compact.push(@id).uniq)
-      number_of_workers = stats.keys.compact.push(@id).uniq.count
-      shards_per_worker = @shards.count.to_f / number_of_workers
+      number_of_workers = workers.compact.uniq.count
+      shards_per_worker = number_of_workers == 1 ? shards_count : (shards_count.to_f / number_of_workers).round
 
-      return stats[nil] if number_of_workers == 1 # all free shards are available if there is single worker
-      return 0 if stats[@id] >= shards_per_worker # no shards are available if current worker already took his portion of shards
-      return stats[nil] if stats[nil] < 2 # if there are not to much free shards - take all of them
+      {
 
-      [shards_per_worker.round - stats[@id], stats[nil]].min # how many free shards the worker can take
+        id: @id,
+        owner_stats: owner_stats,
+        groups_stats: groups_stats,
+        number_of_workers: number_of_workers,
+        shards_per_worker: shards_per_worker,
+        shards_count: shards_count
+      }
+    end
+
+    # Count the number of leases hold by worker excluding the processed shard
+    def rebalance_shards!
+      stats = detailed_stats
+      reassign_count = 0
+
+      unless @stats == stats
+        @stats = stats
+        Kcl.logger.info(message: "Balancer stats", **stats)
+      end
+
+      @shards.each do |shard_id, shard|
+        break if reassign_count >= stats[:shards_per_worker]
+        next if shard.lease_owner == @id
+
+        if shard.new_owner == @id
+          reassign_count += 1
+
+          if reassign_count >= stats[:shards_per_worker]
+            break
+          else
+            next
+          end
+        end
+
+        next if !shard.abendoned? && stats[:owner_stats][shard.assigned_to] <= stats[:shards_per_worker]
+
+        Kcl.logger.debug(message: "Rebalance", shard: shard_id, from: shard.lease_owner, to: @id)
+
+        @shards[shard_id] = checkpointer.ask_for_lease(shard, @id)
+        reassign_count += 1
+        stats[:owner_stats][shard.assigned_to] -= 1
+      rescue Aws::DynamoDB::Errors::ConditionalCheckFailedException
+        Kcl.logger.error(message: "Rebalance failed", shard: shard, to: @id)
+        next
+      end
+    end
+
+    def cleanup_dead_consumers
+      @consumers.delete_if { |consumer| !consumer.alive? }
     end
 
     # Process records by shard
     def consume_shards!
-      counter = 0
-      @available_leases_count = avaliable_leases_count
-      @consumers.delete_if { |consumer| !consumer.alive? }
-
-      @shards.sort_by { |_k, v| v }.reverse.to_h.each do |shard_id, shard|
-        Kcl.logger.debug(message: "Available leases", count: avaliable_leases_count)
-
-        begin
-          shard = checkpointer.fetch_checkpoint(shard)
-        rescue Kcl::Errors::CheckpointNotFoundError
-          Kcl.logger.warn(message: "Not found checkpoint of shard", shard: shard.to_h)
-          next
-        end
-
-        # the shard has owner already
-        next if shard.lease_owner.present?
-
+      @shards.each do |shard_id, shard|
         # shard is closed and processed all records
         next if shard.completed?
 
-        # break if available_leases_count is not positive
-        break if counter >= @available_leases_count
+        # the shard has owner already
+        next unless shard.can_be_owned_by?(@id)
 
         # count the shard as consumed
         begin
-          shard = checkpointer.lease(shard, @id)
+          @shards[shard_id] = checkpointer.lease(shard, @id)
         rescue Aws::DynamoDB::Errors::ConditionalCheckFailedException
           Kcl.logger.warn(message: "Lease failed of shard", shard: shard.to_h)
           next
         end
 
-        counter += 1
-
         @consumers << Thread.new do
-          begin
-            Thread.current[:uuid] = SecureRandom.uuid
-            consumer = Kcl::Workers::Consumer.new(
-              shard,
-              @record_processor_factory.create_processor,
-              kinesis,
-              checkpointer
-            )
-            consumer.consume!
-          ensure
-            shard = checkpointer.remove_lease_owner(shard)
-            Kcl.logger.info(message: "Finish to consume shard", shard_id: shard_id)
-          end
+          Thread.current[:uuid] = SecureRandom.uuid
+          consumer = Kcl::Workers::Consumer.new(
+            shard,
+            @record_processor_factory.create_processor,
+            kinesis,
+            checkpointer
+          )
+          consumer.consume!
         end
       end
     end

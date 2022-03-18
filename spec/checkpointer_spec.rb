@@ -26,7 +26,7 @@ RSpec.describe Kcl::Checkpointer do
     before do
       shard.checkpoint = Kcl::Checkpoints::Sentinel::SHARD_END
       shard.assigned_to = 'test-worker'
-      shard.lease_timeout = Time.now.utc + Kcl.config.dynamodb_failover_seconds
+      shard.lease_timeout = (Time.now.utc + Kcl.config.dynamodb_failover_seconds).to_s
       checkpointer.update_checkpoint(shard)
     end
 
